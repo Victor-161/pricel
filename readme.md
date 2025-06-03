@@ -19,3 +19,33 @@ CMake версии 3.5+
     Управление:
         Кнопка "Блокировка состава" - останавливает движение
         Кнопка "Сброс" - возвращает систему в начальное состояние
+
+
+Linux Ubuntu 
+
+Установка зависимостей 
+
+    sudo apt update
+    sudo apt install -y build-essential cmake qt5-default
+
+Сборка проекта 
+
+    https://github.com/Victor-161/pricel.git
+    cd pricel
+    mkdir build && cd build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make -j$(nproc)
+
+Запуск приложения 
+
+    ./build/pricel3
+
+Возможные проблемы и решения: 
+
+    1)Ошибка "Cannot find Qt5":
+        export QT_DIR=/usr/lib/x86_64-linux-gnu/qt5
+        cmake -DCMAKE_PREFIX_PATH=$QT_DIR ..
+     2)Отсутствие прав:
+        chmod +x pricel3
+     3) Зависимости не найдены:
+        sudo apt install -y libgl1-mesa-dev
