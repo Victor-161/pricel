@@ -17,6 +17,7 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        config/settings.ini data/test_data.txt
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -40,7 +41,7 @@ else()
             ${PROJECT_SOURCES}
             sensor.h sensor.cpp
             axle.h axle.cpp
-            config/settings.ini data/test_data.txt
+
         )
     endif()
 endif()

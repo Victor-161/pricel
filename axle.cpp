@@ -7,23 +7,24 @@ Axle::Axle(int number, QObject *parent)
     number(number),
     position(),
     velocity(),
-    lastPassTime(QDateTime::currentMSecsSinceEpoch())
+    lastPassTime()
 {
     // Настраиваем таймер для обновления позиции
-    moveTimer.setInterval(100); // Обновление каждые 100 мс
+    moveTimer.setInterval(10); // Обновление каждые 100 мс
     connect(&moveTimer, &QTimer::timeout, this, &Axle::updatePosition);
-    moveTimer.start();
 }
+
 
 void Axle::updatePosition() {
 
     if (qFuzzyIsNull(velocity)) return;
 
-    float delta = velocity * 0.1f; // 0.1 секунды (интервал таймера)
+    float delta = velocity * 0.01f; // 0.1 секунды (интервал таймера)
     move(delta);
 }
 
 void Axle::move(float distance) {
+
     position += distance;
 
     // Проверяем пересечение с датчиками
@@ -31,12 +32,17 @@ void Axle::move(float distance) {
         if (!sensor || passedSensors.contains(sensor)) continue;
 
         if (qAbs(position - sensor->getPosition().x()) < 1.0f) {
+
             qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-            qint64 timeSinceLast = currentTime - lastPassTime;
             lastPassTime = currentTime;
+            //qDebug()<<"lastPassTime="<<lastPassTime;
+            //qDebug()<<"moveTimer="<<moveTimer.;
+
             passedSensors.insert(sensor); // Фиксируем проход
+
         // Генерируем сигнал с полными данными
-            emit passedSensor(sensor, getVelocity(), timeSinceLast, getNumber(), distance); // Добавляем номер оси
+            emit passedSensor(sensor, velocity, lastPassTime, number, distance  ); // Добавляем номер оси
+//          qDebug()<<"Id_1" << sensor->getId() <<"\t vel_1=" << getVelocity()<< "\t t_1="  << lastPassTime << "\t n=" << getNumber()<< distance;
         }
     }
 }
@@ -47,7 +53,11 @@ void Axle::registerSensor(Sensor* sensor) {
         }
 }
 
+void Axle::setLastIsBlocked(bool blocked) {lastIsBlocked = blocked; }
 
+bool Axle::isBlocked() const {
+    return lastIsBlocked;
+}
 
 int Axle::getNumber() const {
     return number;
@@ -80,6 +90,12 @@ void Axle::resetPosition(float newPosition)
     passedSensors.clear(); // Сбрасываем флаги прохода
 }
 
-float Axle::calculateDistanceTo(const Axle &other) const {
-    return qAbs(position - other.position);
+
+void Axle::startTimer(){
+    moveTimer.start();
+//    qDebug() << "Таймер сработал!";
+}
+
+void Axle::stopTimer(){
+    moveTimer.stop();
 }

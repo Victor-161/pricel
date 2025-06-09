@@ -5,6 +5,9 @@
 #include <QMainWindow>
 #include <QVector>
 #include <QMap>
+#include <QPushButton>
+
+#define  koef_M     5.0
 
 class Sensor;
 class Axle;
@@ -21,6 +24,11 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+public slots:
+
+
+
+
 private slots:
     // Слоты для обработки данных от датчиков
     void handleSensorData(Sensor* sensor, float velocity, qint64 timeSinceLast, int axleNum, float distance);
@@ -35,11 +43,15 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+    QPushButton *startButton;
+    QPushButton *resetButton;
+    Axle *axle;
 
     // Основные компоненты системы
     QVector<Sensor*> sensors;  // Список датчиков
     QVector<Axle*> axles;      // Список осей
     bool isBlocked;            // Флаг блокировки системы
+    bool lastIsBlocked;         // Флаг предыдущего состояния системы
 
     // Вспомогательные методы
     void setupSystem();        // Инициализация системы

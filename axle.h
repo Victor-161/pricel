@@ -5,6 +5,10 @@
 #include <QPointF>
 #include <QTimer>
 #include <QSet>
+#include <QPushButton>
+#include <QDebug>
+
+#define  koef_M     5.0
 
 class Sensor;
 
@@ -17,34 +21,40 @@ public:
     void move(float distance);
     void registerSensor(Sensor* sensor);
 
+
     // Getters
     int getNumber() const;
     float getPosition() const;
     float getVelocity() const;
-    //    qint64 getLastDetectionTime() const;
-    //    int getLastSensorId() const;
+    bool isBlocked() const;
+
 
     // Setters
     void setPosition(float position);
     void setVelocity(float velocity);
-    //  void updateDetection(qint64 time, int sensorId);
+    void setLastIsBlocked(bool lastIsBlocked);
     void resetPosition(float newPosition);
 
-    // Calculation
-    float calculateDistanceTo(const Axle &other) const;
 
 signals:
     void passedSensor(Sensor* sensor, float velocity, qint64 timeSinceLast, int axleNum, float distance);   //, float distance
 
+public slots:
+    void startTimer();
+    void stopTimer();
+
 private slots:
     void updatePosition();
 
+
 private:
+    bool lastIsBlocked;
     int number;
     float position;
     float velocity;
     qint64 lastPassTime;
-    QTimer moveTimer;
+    QTimer moveTimer;       // Таймер
+    QPushButton *startButton;
     QList<Sensor*> sensors;
     QSet<Sensor*> passedSensors; // Датчики, которые уже были пройдены
 };
