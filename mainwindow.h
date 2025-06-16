@@ -24,6 +24,8 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    void processSensorData(const QString &data);
+
 public slots:
 
 
@@ -37,9 +39,14 @@ private slots:
     void onBlockButtonClicked();
     void onResetButtonClicked();
     void on_action_changed();
+    void on_loadDataButton_clicked();       // Слот для обработки нажатия кнопки "Загрузить данные"
 
     // Слот для обновления визуализации
     void updateVisualization();
+
+
+
+    void on_actionLoadConfig();
 
 private:
     Ui::MainWindow *ui;
@@ -50,8 +57,17 @@ private:
     // Основные компоненты системы
     QVector<Sensor*> sensors;  // Список датчиков
     QVector<Axle*> axles;      // Список осей
+
+    std::vector<int> sensorId_t;
+    std::vector<float> velocity_t;
+    std::vector<int> timePrev_t;
+    std::vector<int> axleNum_t;
+
     bool isBlocked;            // Флаг блокировки системы
     bool lastIsBlocked;         // Флаг предыдущего состояния системы
+    bool isLoadDataActive = 0;      // Флаг активности кнопки "Загрузить данные"
+
+    void raschetKolBas();
 
     // Вспомогательные методы
     void setupSystem();        // Инициализация системы

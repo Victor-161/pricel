@@ -1,5 +1,6 @@
-#include <QSettings>
+
 #include <QFile>
+#include <QSettings>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "sensor.h"
@@ -13,6 +14,8 @@
 #include <QDateTime>
 #include <QTimer>
 #include <QDebug>
+#include <QMessageBox>
+#include <QTextStream>
 
 //#define  koef_M     5.0
 
@@ -56,6 +59,8 @@ MainWindow::MainWindow(QWidget *parent)
     // Подключение кнопок блокировки и сброса
     connect(ui->blockButton, &QPushButton::clicked, this, &MainWindow::onBlockButtonClicked);
     connect(ui->resetButton, &QPushButton::clicked, this, &MainWindow::onResetButtonClicked);
+    connect(ui->actionLoadConfig, &QAction::triggered, this, &MainWindow::on_actionLoadConfig);
+
 
 }
 
@@ -141,6 +146,76 @@ void MainWindow::setupSystem()
     }
 }
 
+void MainWindow::raschetKolBas(){
+
+    QMap<int, QVector<float>> axleDistances;
+
+    for (size_t i = 0; i < sensorId_t.size(); ++i){
+        float distance;
+        if(timePrev_t[i] < 65535){
+            distance = (velocity_t[i] * timePrev_t[i]) /1000;
+            axleDistances[axleNum_t[i]].append(distance);}
+    }
+
+
+    // Рассчитываем средние расстояния
+    QMap<int, float> avgDistances;
+    QList<int> axles = axleDistances.keys();
+    std::sort(axles.begin(), axles.end());
+
+    for (int i = 0; i < axles.size(); ++i) {
+        float sum = 0;
+        int count = 0;
+
+        for (float dist : axleDistances[axles[i]]) {
+            sum += dist;
+            count++;
+        }
+
+        if (count > 0) {
+            avgDistances[axles[i]] = sum / count;
+//            qDebug()<<"avgDistances = "<< avgDistances[axles[i]];
+        }
+    }
+
+    // Формируем колесную формулу
+    QString wheelFormula = "\"";
+    for (int i = 0; i < axles.size(); ++i) {
+        wheelFormula += QString::number(avgDistances[axles[i]], 'f', 2);
+        if (i < axles.size() - 1) wheelFormula += ", ";
+    }
+    wheelFormula += '"';
+    qDebug() <<"wheel_Formula_ras = "<<wheelFormula;
+
+
+    // Формируем полный отчет
+    QString report = "Результаты расчета колесной формулы\n";
+    report += "================================\n";
+    report += "Дата расчета: " + QDateTime::currentDateTime().toString("dd.MM.yyyy HH:mm:ss") + "\n";
+
+    report += "wheelFormula = " + wheelFormula + "\n";
+
+    // Сохраняем в файл
+    QString filePath = QCoreApplication::applicationDirPath() + "/wheel_formula_ras.txt";
+    QFile file(filePath);
+
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << report;
+        file.close();
+
+        // Показываем сообщение пользователю
+        QString message = "Результаты сохранены в файл:\n" + filePath + "\n\n";
+        message += "Колесная формула: " + wheelFormula;
+        QMessageBox::information(this, "Результаты расчета", message);
+
+        statusBar()->showMessage("Файл с результатами сохранен", 3000);
+    } else {
+        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл с результатами");
+    }
+
+}
+
 void MainWindow::initSensorTable()
 {
     ui->sensorTable->setColumnCount(5);
@@ -161,12 +236,32 @@ void MainWindow::handleSensorData(Sensor* sensor, float velocity, qint64 timeSin
     ui->sensorTable->insertRow(row);
 
     // Заполняем данные
-    ui->sensorTable->setItem(row, 0, new QTableWidgetItem(QString::number(sensor->getId())));
-    ui->sensorTable->setItem(row, 1, new QTableWidgetItem(QString::number(sensor->getLastVelocity(), 'f', 2)));
-    ui->sensorTable->setItem(row, 2, new QTableWidgetItem(QString::number(sensor->getLastTimeSinceLast())));
-    ui->sensorTable->setItem(row, 3, new QTableWidgetItem(QString::number(sensor->getLastAxleNum())));
-    ui->sensorTable->setItem(row, 4, new QTableWidgetItem(QString::number(sensor->getDistanceToNextAxle(), 'f', 2)));
 
+    if (isLoadDataActive==0){
+        ui->sensorTable->setItem(row, 0, new QTableWidgetItem(QString::number(sensor->getId())));
+        ui->sensorTable->setItem(row, 1, new QTableWidgetItem(QString::number(sensor->getLastVelocity(), 'f', 2)));
+        ui->sensorTable->setItem(row, 2, new QTableWidgetItem(QString::number(sensor->getLastTimeSinceLast())));
+        ui->sensorTable->setItem(row, 3, new QTableWidgetItem(QString::number(sensor->getLastAxleNum())));
+        ui->sensorTable->setItem(row, 4, new QTableWidgetItem(QString::number(sensor->getDistanceToNextAxle(), 'f', 2)));
+    }
+    else{   // вывод тестовых данных
+        for (size_t i = 0; i < sensorId_t.size(); ++i){
+            if(sensorId_t[i] == sensor->getId()){
+                if(axleNum_t[i] == sensor->getLastAxleNum()){
+
+                    float distance_t=0;
+                    if(timePrev_t[i] < 65535){
+                        distance_t = (velocity_t[i] * timePrev_t[i]) /1000;}
+
+                    ui->sensorTable->setItem(row, 0, new QTableWidgetItem(QString::number(sensorId_t[i])));
+                    ui->sensorTable->setItem(row, 1, new QTableWidgetItem(QString::number(velocity_t[i])));
+                    ui->sensorTable->setItem(row, 2, new QTableWidgetItem(QString::number(timePrev_t[i])));
+                    ui->sensorTable->setItem(row, 3, new QTableWidgetItem(QString::number(axleNum_t[i])));
+                    ui->sensorTable->setItem(row, 4, new QTableWidgetItem(QString::number(distance_t, 'f', 2)));
+                }
+            }
+        }
+    }
     // Прокрутка к новой записи
     ui->sensorTable->scrollToBottom();
 }
@@ -272,4 +367,83 @@ void MainWindow::on_action_changed()
 }
 
 
+
+
+void MainWindow::on_loadDataButton_clicked()
+{
+    if(isLoadDataActive) isLoadDataActive=0;
+    else isLoadDataActive = 1;
+
+    ui->loadDataButton->setStyleSheet(isLoadDataActive ? "background-color: lightgreen;" : "");
+
+
+
+    if(sensorId_t.empty()){
+        QSettings settings("config/settings.ini", QSettings::IniFormat);
+        QString filePath = settings.value("path/filePath", QCoreApplication::applicationDirPath() + "/test_data.txt").toString();
+
+        if (!settings.contains("path/filePath")) {
+            qWarning() << "Значение Path установленo по умолчанию, applicationDir + /test_data.txt";
+        }
+        else qWarning() << "Значение Path установленo в соответствии с файлом конфигурации";
+        qDebug() <<"filePath = " <<filePath;
+
+        QFile file(filePath);
+
+        // Проверка существования файла
+        if (!QFile::exists(filePath)) {
+            QMessageBox::warning(this, "Ошибка", "Файл test_data.txt не найден.\n"
+                                                 "Разместите файл в папке: " + QCoreApplication::applicationDirPath());
+            isLoadDataActive = false;
+            ui->loadDataButton->setStyleSheet("");                return;
+        }
+
+
+        if (file.open(QIODevice::ReadOnly)) {
+            QTextStream in(&file);
+            while (!in.atEnd()) {
+                QString line = in.readLine();
+                if (line.startsWith("[ID=")) {
+                    processSensorData(line);
+                    //qDebug() <<"line="<<line;
+                }
+            }
+            file.close();
+        }
+        raschetKolBas();
+    }
+
+    ui->loadDataButton->setText(sensorId_t.empty() ? "Загрузить данные" : "Данные загружены");
+
+    /*  //вывести test_data
+    for (size_t i = 0; i < sensorId_t.size(); ++i)
+    {    qDebug() << sensorId_t[i] << velocity_t[i] << timePrev_t[i] << axleNum_t[i];    }
+    */
+
+}
+
+void MainWindow::processSensorData(const QString &data)
+{
+    QRegularExpression regex(
+        "\\[ID=(\\d+);\\s*vel=([\\d,]+);\\s*time_prev=(\\d+);\\s*axle_num=(\\d+)\\]");
+    QRegularExpressionMatch match = regex.match(data);
+
+    if (!match.hasMatch()) {
+        qWarning() << "Неверный формат данных:" << data;
+        return;
+    }
+
+    sensorId_t.push_back(match.captured(1).toInt());
+    velocity_t.push_back(match.captured(2).replace(",", ".").toFloat());
+    timePrev_t.push_back(match.captured(3).toInt());
+    axleNum_t.push_back(match.captured(4).toInt());
+
+
+}
+
+
+void MainWindow::on_actionLoadConfig()
+{
+    on_loadDataButton_clicked();
+}
 
